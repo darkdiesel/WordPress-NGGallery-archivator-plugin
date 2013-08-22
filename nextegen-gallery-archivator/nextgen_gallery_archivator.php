@@ -20,215 +20,281 @@ if (!class_exists('nggarchivator')) {
     class nggArchivator
     {
 
-        function nggArchivator()
-        {
-            add_action('admin_menu', array(&$this, 'add_admin_menu'));
-            add_action('admin_enqueue_scripts', array(&$this, 'add_load_scripts'));
-            add_action('admin_enqueue_', array(&$this, 'add_load_scripts'));
-            add_action('wp_ajax_update_nggachive', array(&$this, 'update_nggallery_achive_ajax'));
-            add_action('wp_ajax_remove_nggachive', array(&$this, 'remove_nggallery_achive_ajax'));
-        }
+	function nggArchivator()
+	{
+	    add_action('admin_menu', array(&$this, 'add_admin_menu'));
+	    add_action('admin_enqueue_scripts', array(&$this, 'add_load_scripts'));
+	    add_action('admin_enqueue_', array(&$this, 'add_load_scripts'));
+	    add_action('wp_ajax_update_nggachive', array(&$this, 'update_nggallery_achive_ajax'));
+	    add_action('wp_ajax_remove_nggachive', array(&$this, 'remove_nggallery_achive_ajax'));
 
-        function add_admin_menu()
-        {
-            global $archivator_tool;
-            //add_options_page(__('LetterBox Thumbnails Settings', 'default'), __('Letterbox Thumbnails', 'Letterbox Thumbnails'), 'manage_options', 'letterbox_thumbnails.php', array(&$this, 'letterboxing_settings_interface'));
-            $archivator_tool = add_management_page(
-                __('NextGEN Archivator', 'nggarchivator'), __('NextGEN Archivator', 'nggarchivator'), 8,
-                'nggarchivator', array(&$this, 'nggarchivator_tool_interface')
-            );
-        }
+	    add_shortcode('nextgenarchives', array(&$this, 'nextgenarchives_shortcode'));
+	}
 
-        function nggarchivator_tool_interface()
-        {
-            ?>
-            <h2><?php echo __('NextGEN Archivator Tool', 'nggarchivator') ?></h2>
-            <?php
-            global $wpdb;
+	function nextgenarchives_shortcode($atts)
+	{
+	    ?>
+	    <h2><?php echo __('Ссылки для скачивания галлерей', 'nggarchivator') ?></h2>
+	    <?php
+	    global $wpdb;
 
-            $nggpictures = $wpdb->prefix . 'ngg_pictures';
-            $nggallery = $wpdb->prefix . 'ngg_gallery';
+	    $nggpictures = $wpdb->prefix . 'ngg_pictures';
+	    $nggallery = $wpdb->prefix . 'ngg_gallery';
 
-            $nggalleryes = $wpdb->get_results(
-                $wpdb->prepare(
-                    "
-                    SELECT $nggallery.gid, $nggallery.name, $nggallery.path, COUNT($nggpictures.pid) AS count_pic_gal
+	    $nggalleryes = $wpdb->get_results(
+		    $wpdb->prepare(
+			    "
+                    SELECT $nggallery.gid, $nggallery.title, $nggallery.path, COUNT($nggpictures.pid) AS count_pic_gal
                     FROM $nggallery
                     LEFT JOIN $nggpictures
                     ON $nggallery.gid=$nggpictures.galleryid
                     GROUP BY $nggallery.gid"
-                )
-            );
-            ?>
-            <table id="nggallery_archives" class="widefat importers" cellspacing="0">
-                <thead>
-                <tr>
-                    <th><?php echo __('Gallery Id', 'nggarchivator') ?></th>
-                    <th><?php echo __('Gallery Name', 'nggarchivator') ?></th>
-                    <th><?php echo __('Gallery Path', 'nggarchivator') ?></th>
-                    <th><?php echo __('Count Gallery Pictures', 'nggarchivator') ?></th>
-                    <th><?php echo __('Link to archive', 'nggarchivator') ?></th>
-                    <th><?php echo __('Action', 'nggarchivator') ?></th>
-                    <th><?php echo __('Remove archive', 'nggarchivator') ?></th>
-                </tr>
-                </thead>
-                <tbody>
-                <?php
-                foreach ($nggalleryes as $nggallery) {
-                    ?>
-                    <tr>
-                        <td><?php echo $nggallery->gid ?></td>
-                        <td><strong><?php echo $nggallery->name ?></strong></td>
-                        <td><i><?php echo $nggallery->path ?></i></td>
-                        <td><?php echo $nggallery->count_pic_gal ?></td>
-                        <td class="ngg-gallery-link">
-                            <?php
-                            $gallery_path = str_replace('wp-content', $nggallery->path, WP_CONTENT_DIR);
+		    )
+	    );
+	    ?>
+	    <table id="nggallery_archives" class="widefat importers" cellspacing="0">
+	        <thead>
+	    	<tr>
+	    	    <th><?php echo __('Название Галлереи', 'nggarchivator') ?></th>
+	    	    <th><?php echo __('Количество картинок', 'nggarchivator') ?></th>
+	    	    <th><?php echo __('Ссылка на архив', 'nggarchivator') ?></th>
+	    	</tr>
+	        </thead>
+	        <tbody>
+		    <?php
+		    foreach ($nggalleryes as $nggallery) {
+			?>
+			<tr>
+			    <td><strong><?php echo $nggallery->title ?></strong></td>
+			    <td><?php echo $nggallery->count_pic_gal ?></td>
+			    <td class="ngg-gallery-link">
+				<?php
+				$gallery_path = str_replace('wp-content', $nggallery->path, WP_CONTENT_DIR);
 
-                            if (file_exists($gallery_path . '/archive/' . 'archive.zip')) {
-                            $galery_url = str_replace(
-                                'wp-content', $nggallery->path . '/archive/' . 'archive.zip', content_url()
-                            )
-                            ?>
-                            <a class="dwonload_archive"
-                               href="<?php echo $galery_url ?>"><?php echo __('Download', 'nggachivator') ?></a>
-                        </td>
-                        <?php
-                        } else {
-                            echo __('No archive', 'nggachivator');
-                            ?>
-                        <?php
-                        }
-                        ?>
-                        <td>
-                            <a class="update_archive" data-gallery-id="<?php echo $nggallery->gid ?>"
-                               href="#"><?php echo __('Create / Update archive', 'nggachivator') ?></a>
-                            <span class="ajax_loader" style="display:none"><img
-                                    src="<?php echo plugins_url('img/ajax-loader.gif', __FILE__) ?>"></span
-                        </td>
-                        <td>
-                            <a class="remove_archive" data-gallery-id="<?php echo $nggallery->gid ?>"
-                               href="#"><?php echo __('Delete archive', 'nggachivator') ?></a>
-                            <span class="ajax_loader" style="display:none"><img
-                                    src="<?php echo plugins_url('img/ajax-loader.gif', __FILE__) ?>"></span
-                        </td>
-                    </tr>
-                <?php
-                }
-                ?>
-                </tbody>
-            </table>
-        <?php
-        }
+				if (file_exists($gallery_path . '/archive/' . 'archive.zip')) {
+				    $galery_url = str_replace(
+					    'wp-content', $nggallery->path . '/archive/' . 'archive.zip', content_url()
+					    )
+				    ?>
+		    		<a class="dwonload_archive"
+		    		   href="<?php echo $galery_url ?>"><?php echo __('Скачать', 'nggachivator') ?></a>
+		    	    </td>
+				<?php
+			    } else {
+				echo __('Нет архива', 'nggachivator');
+				?>
+				<?php
+			    }
+			    ?>
+			</tr>
+			<?php
+		    }
+		    ?>
+	        </tbody>
+	    </table>
+	    <?php
+	}
 
-        function add_load_scripts($hook)
-        {
-            global $archivator_tool;
+	function add_admin_menu()
+	{
+	    global $archivator_tool;
+	    //add_options_page(__('LetterBox Thumbnails Settings', 'default'), __('Letterbox Thumbnails', 'Letterbox Thumbnails'), 'manage_options', 'letterbox_thumbnails.php', array(&$this, 'letterboxing_settings_interface'));
+	    $archivator_tool = add_management_page(
+		    __('NextGEN Archivator', 'nggarchivator'), __('NextGEN Archivator', 'nggarchivator'), 8, 'nggarchivator', array(&$this, 'nggarchivator_tool_interface')
+	    );
+	}
 
-            if ($hook != $archivator_tool) {
-                return;
-            }
+	function nggarchivator_tool_interface()
+	{
+	    ?>
+	    <h2><?php echo __('NextGEN Archivator Tool', 'nggarchivator') ?></h2>
+	    <?php
+	    global $wpdb;
 
-            wp_enqueue_script(
-                'nggachivator_ajax', plugin_dir_url(__FILE__) . "js/nggachivator_ajax.js", array('jquery')
-            );
+	    $nggpictures = $wpdb->prefix . 'ngg_pictures';
+	    $nggallery = $wpdb->prefix . 'ngg_gallery';
 
-            wp_localize_script(
-                'nggachivator_ajax', 'nggachivator_vars',
-                array('nggachivator_nonce' => wp_create_nonce('nggachivator-nonce'))
-            );
+	    $nggalleryes = $wpdb->get_results(
+		    $wpdb->prepare(
+			    "
+                    SELECT $nggallery.gid, $nggallery.title, $nggallery.path, COUNT($nggpictures.pid) AS count_pic_gal
+                    FROM $nggallery
+                    LEFT JOIN $nggpictures
+                    ON $nggallery.gid=$nggpictures.galleryid
+                    GROUP BY $nggallery.gid"
+		    )
+	    );
+	    ?>
+	    <table id="nggallery_archives" class="widefat importers" cellspacing="0">
+	        <thead>
+	    	<tr>
+	    	    <th><?php echo __('Gallery Id', 'nggarchivator') ?></th>
+	    	    <th><?php echo __('Gallery Name', 'nggarchivator') ?></th>
+	    	    <th><?php echo __('Gallery Path', 'nggarchivator') ?></th>
+	    	    <th><?php echo __('Count Gallery Pictures', 'nggarchivator') ?></th>
+	    	    <th><?php echo __('Link to archive', 'nggarchivator') ?></th>
+	    	    <th><?php echo __('Action', 'nggarchivator') ?></th>
+	    	    <th><?php echo __('Remove archive', 'nggarchivator') ?></th>
+	    	</tr>
+	        </thead>
+	        <tbody>
+		    <?php
+		    foreach ($nggalleryes as $nggallery) {
+			?>
+			<tr>
+			    <td><?php echo $nggallery->gid ?></td>
+			    <td><strong><?php echo $nggallery->title ?></strong></td>
+			    <td><i><?php echo $nggallery->path ?></i></td>
+			    <td><?php echo $nggallery->count_pic_gal ?></td>
+			    <td class="ngg-gallery-link">
+				<?php
+				$gallery_path = str_replace('wp-content', $nggallery->path, WP_CONTENT_DIR);
 
-            wp_enqueue_style('nggachivator_style', plugin_dir_url(__FILE__) . "css/style.css");
-        }
+				if (file_exists($gallery_path . '/archive/' . 'archive.zip')) {
+				    $galery_url = str_replace(
+					    'wp-content', $nggallery->path . '/archive/' . 'archive.zip', content_url()
+					    )
+				    ?>
+		    		<a class="dwonload_archive"
+		    		   href="<?php echo $galery_url ?>"><?php echo __('Download', 'nggachivator') ?></a>
+		    	    </td>
+				<?php
+			    } else {
+				echo __('No archive', 'nggachivator');
+				?>
+				<?php
+			    }
+			    ?>
+			    <td>
+				<a class="update_archive" data-gallery-id="<?php echo $nggallery->gid ?>"
+				   href="#"><?php echo __('Create / Update archive', 'nggachivator') ?></a>
+				<span class="ajax_loader" style="display:none"><img
+					src="<?php echo plugins_url('img/ajax-loader.gif', __FILE__) ?>"></span
+			    </td>
+			    <td>
+				<a class="remove_archive" data-gallery-id="<?php echo $nggallery->gid ?>"
+				   href="#"><?php echo __('Delete archive', 'nggachivator') ?></a>
+				<span class="ajax_loader" style="display:none"><img
+					src="<?php echo plugins_url('img/ajax-loader.gif', __FILE__) ?>"></span
+			    </td>
+			</tr>
+			<?php
+		    }
+		    ?>
+	        </tbody>
+	    </table>
+	    <h3><?php echo __('NextGEN Archivator ShortCode', 'nggarchivator') ?></h3>
+	    <p><?php echo __('For print gallery links on post or page use sortcode <strong>[nextgenarchives]</strong>', 'nggarchivator') ?></p>
+	    <?php
+	}
 
-        function update_nggallery_achive_ajax()
-        {
-            if(!isset($_POST['nggachivator_nonce']) || !wp_verify_nonce($_POST['nggachivator_nonce'], "nggachivator-nonce"))
-                die(__('Permission check failed', 'nggarchivator'));
+	function add_load_scripts($hook)
+	{
+	    global $archivator_tool;
 
-            global $wpdb;
+	    if ($hook != $archivator_tool) {
+		return;
+	    }
 
-            $nggpictures = $wpdb->prefix . 'ngg_pictures';
-            $nggallery = $wpdb->prefix . 'ngg_gallery';
+	    wp_enqueue_script(
+		    'nggachivator_ajax', plugin_dir_url(__FILE__) . "js/nggachivator_ajax.js", array('jquery')
+	    );
 
-            // requested gallery id
-            $galery_id = $_REQUEST['galery_id'];
+	    wp_localize_script(
+		    'nggachivator_ajax', 'nggachivator_vars', array('nggachivator_nonce' => wp_create_nonce('nggachivator-nonce'))
+	    );
 
-            $nggalleryes = $wpdb->get_results(
-                $wpdb->prepare(
-                    "
+	    wp_enqueue_style('nggachivator_style', plugin_dir_url(__FILE__) . "css/style.css");
+	}
+
+	function update_nggallery_achive_ajax()
+	{
+	    if (!isset($_POST['nggachivator_nonce']) || !wp_verify_nonce($_POST['nggachivator_nonce'], "nggachivator-nonce"))
+		die(__('Permission check failed', 'nggarchivator'));
+
+	    global $wpdb;
+
+	    $nggpictures = $wpdb->prefix . 'ngg_pictures';
+	    $nggallery = $wpdb->prefix . 'ngg_gallery';
+
+	    // requested gallery id
+	    $galery_id = $_REQUEST['galery_id'];
+
+	    $nggalleryes = $wpdb->get_results(
+		    $wpdb->prepare(
+			    "
                     SELECT $nggpictures.filename, $nggallery.gid, $nggallery.path
                     FROM $nggpictures
                     LEFT JOIN $nggallery
                     ON $nggpictures.galleryid=$nggallery.gid
                     WHERE wp_ngg_pictures.galleryid = %d", $galery_id
-                )
-            );
+		    )
+	    );
 
-            $gallery_path = str_replace('wp-content', $nggalleryes[0]->path, WP_CONTENT_DIR);
+	    $gallery_path = str_replace('wp-content', $nggalleryes[0]->path, WP_CONTENT_DIR);
 
-            if (!file_exists($gallery_path . '/archive')) {
-                mkdir($gallery_path . '/archive');
-            } else {
-                $files = glob($gallery_path . '/archive/*'); // get all file names
-                foreach ($files as $file) { // iterate files
-                    if (is_file($file)) {
-                        unlink($file);
-                    } // delete file
-                }
-            }
+	    if (!file_exists($gallery_path . '/archive')) {
+		mkdir($gallery_path . '/archive');
+	    } else {
+		$files = glob($gallery_path . '/archive/*'); // get all file names
+		foreach ($files as $file) { // iterate files
+		    if (is_file($file)) {
+			unlink($file);
+		    } // delete file
+		}
+	    }
 
-            //create the archive
-            $zip = new ZipArchive();
+	    //create the archive
+	    $zip = new ZipArchive();
 
-            if ($zip->open($gallery_path . '/archive/' . 'archive.zip', ZIPARCHIVE::CREATE) !== true) {
-                return false;
-            }
+	    if ($zip->open($gallery_path . '/archive/' . 'archive.zip', ZIPARCHIVE::CREATE) !== true) {
+		return false;
+	    }
 
-            foreach ($nggalleryes as $picture) {
-                if (file_exists($gallery_path . '/' . $picture->filename)) {
-                    $zip->addFile($gallery_path . '/' . $picture->filename, $picture->filename);
-                }
-            }
+	    foreach ($nggalleryes as $picture) {
+		if (file_exists($gallery_path . '/' . $picture->filename)) {
+		    $zip->addFile($gallery_path . '/' . $picture->filename, $picture->filename);
+		}
+	    }
 
-            $zip->close();
-            $gallery_url = str_replace(
-                'wp-content', $nggalleryes[0]->path . '/archive/' . 'archive.zip', content_url()
-            );
-            echo $gallery_url;
+	    $zip->close();
+	    $gallery_url = str_replace(
+		    'wp-content', $nggalleryes[0]->path . '/archive/' . 'archive.zip', content_url()
+	    );
+	    echo $gallery_url;
 
-            die();
-        }
+	    die();
+	}
 
-        function remove_nggallery_achive_ajax()
-        {
-            if(!isset($_POST['nggachivator_nonce']) || !wp_verify_nonce($_POST['nggachivator_nonce'], "nggachivator-nonce"))
-                die(__('Permission check failed', 'nggarchivator'));
+	function remove_nggallery_achive_ajax()
+	{
+	    if (!isset($_POST['nggachivator_nonce']) || !wp_verify_nonce($_POST['nggachivator_nonce'], "nggachivator-nonce"))
+		die(__('Permission check failed', 'nggarchivator'));
 
-            // requested gallery id
-            $galery_id = $_REQUEST['galery_id'];
+	    // requested gallery id
+	    $galery_id = $_REQUEST['galery_id'];
 
-            global $wpdb;
+	    global $wpdb;
 
-            $nggallery = $wpdb->prefix . 'ngg_gallery';
+	    $nggallery = $wpdb->prefix . 'ngg_gallery';
 
-            $nggalleryes = $wpdb->get_results(
-                $wpdb->prepare(
-                    "
+	    $nggalleryes = $wpdb->get_results(
+		    $wpdb->prepare(
+			    "
                     SELECT $nggallery.path
                     FROM $nggallery
                     WHERE $nggallery.gid = %d", $galery_id
-                )
-            );
+		    )
+	    );
 
-            $gallery_path = str_replace('wp-content', $nggalleryes[0]->path, WP_CONTENT_DIR);
+	    $gallery_path = str_replace('wp-content', $nggalleryes[0]->path, WP_CONTENT_DIR);
 
-            if (file_exists($gallery_path . '/archive/archive.zip')) {
-                unlink($gallery_path . '/archive/archive.zip');
-            }
+	    if (file_exists($gallery_path . '/archive/archive.zip')) {
+		unlink($gallery_path . '/archive/archive.zip');
+	    }
 
-            die();
-        }
+	    die();
+	}
 
     }
 
